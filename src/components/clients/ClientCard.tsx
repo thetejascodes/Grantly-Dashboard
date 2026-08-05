@@ -15,7 +15,7 @@ export function ClientCard({ client, onDelete }: ClientCardProps) {
       <p>
         <strong>Created:</strong> {new Date(client.createdAt).toLocaleDateString()}
       </p>
-      <button onClick={() => onDelete(client.id)}>Delete</button>
-    </div>
+     <button onClick={() => onDelete(client.clientId)}>Delete</button>    
+     </div>
   );
 }
