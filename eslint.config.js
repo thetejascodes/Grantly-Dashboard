@@ -19,4 +19,13 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // TanStack Router's file-based routing intentionally exports both a
+    // Route object and its component from the same file — this is the
+    // expected, correct pattern, not a fast-refresh problem.
+    files: ['src/routes/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])
