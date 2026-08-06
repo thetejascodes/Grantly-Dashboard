@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { useSession } from '../../hooks/useSession'
+import { LogoutButton } from '../../components/auth/LogoutButton'
 
 export const Route = createFileRoute('/dashboard')({
   component: DashboardLayout,
@@ -21,7 +22,9 @@ function DashboardLayout() {
     <div>
       <header>
         <h1>Grantly Dashboard</h1>
-        <p>Logged in as {user.email}</p>
+        <p>
+          Logged in as {user.email} <LogoutButton />
+        </p>
       </header>
       <Outlet />
     </div>
