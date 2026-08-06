@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Sun, Moon } from 'lucide-react';
 
@@ -8,9 +10,9 @@ import { ArrowRight, Sun, Moon } from 'lucide-react';
 //
 // The hanko is the real-world ancestor of what an OAuth token does: a carved
 // mark that authorizes a document on someone's behalf. That's the whole page.
-// The stamp and the sun/mountain scene use a fixed "ink" palette on purpose —
+// The stamp and the wave scene use a fixed "ink" palette on purpose —
 // vermillion on dark, always — while the rest of the page switches between a
-// sumi-ink (dark) and washi-paper (light) theme.
+// sumi-ink (dark) and washi-paper (light) theme, persisted across visits.
 //
 // Fonts (add to index.html <head>, replacing any previous font link):
 // <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,7 +22,11 @@ import { ArrowRight, Sun, Moon } from 'lucide-react';
 // Install: npm install framer-motion
 // ---------------------------------------------------------------------------
 
-function GithubIcon({ className }) {
+interface GithubIconProps {
+  className?: string;
+}
+
+function GithubIcon({ className }: GithubIconProps) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
       <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.09 3.29 9.4 7.86 10.93.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14 0 1.55-.01 2.79-.01 3.17 0 .3.2.66.79.55A10.53 10.53 0 0 0 23.5 12c0-6.35-5.15-11.5-11.5-11.5Z" />
@@ -28,17 +34,23 @@ function GithubIcon({ className }) {
   );
 }
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 16 },
-  show: (i = 0) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] },
-  }),
-};
+// Type-only escape hatch for CSS custom properties — React's CSSProperties
+// has no index signature for `--foo` vars, so plain style objects reject them.
+type CSSVars = CSSProperties & Record<`--${string}`, string>;
 
-// ---- fixed "ink" palette — used only by the seal and the wave scene, ----
-// ---- which stay vermillion-on-dark regardless of page theme ----
+function getFadeUp(reduceMotion: boolean): Variants {
+  return {
+    hidden: reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 },
+    show: (i: number = 0) => ({
+      opacity: 1,
+      y: 0,
+      transition: reduceMotion
+        ? { duration: 0 }
+        : { duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] },
+    }),
+  };
+}
+
 const SUMI = '#1B1A17';
 const SUMI_DEEP = '#0F0E0C';
 const PAPER = '#EDE7D9';
@@ -51,8 +63,16 @@ const DISPLAY = "'Shippori Mincho', serif";
 const BODY = "'Zen Kaku Gothic New', sans-serif";
 const MONO = "'JetBrains Mono', monospace";
 
-// ---- page-chrome themes — everything except the seal and the wave scene ----
-const darkTheme = {
+interface ThemeTokens {
+  bg: string;
+  panel: string;
+  text: string;
+  muted: string;
+  hairline: string;
+  brass: string;
+}
+
+const darkTheme: ThemeTokens = {
   bg: '#1B1A17',
   panel: '#242019',
   text: '#EDE7D9',
@@ -60,7 +80,7 @@ const darkTheme = {
   hairline: '#3A362C',
   brass: '#B8935B',
 };
-const lightTheme = {
+const lightTheme: ThemeTokens = {
   bg: '#F5F1E6',
   panel: '#EAE2CD',
   text: '#211C16',
@@ -68,6 +88,17 @@ const lightTheme = {
   hairline: '#D9CFB4',
   brass: '#8C6A3D',
 };
+
+const THEME_STORAGE_KEY = 'grantly-theme';
+
+function inkButtonStyle(): CSSProperties {
+  return {
+    background: `linear-gradient(155deg, ${VERMILLION_LIGHT}, ${VERMILLION} 55%, ${VERMILLION_DEEP})`,
+    color: PAPER,
+    fontWeight: 600,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15)',
+  };
+}
 
 const specRows = [
   { label: 'PKCE', value: 'Enforced on every client, no exceptions' },
@@ -107,7 +138,12 @@ const problems = [
   },
 ];
 
-// A faint paper-fiber grain, laid once over the whole page.
+const navLinks = [
+  { href: '#why', label: 'Why' },
+  { href: '#flow', label: 'Flow' },
+  { href: '#spec', label: 'Spec' },
+];
+
 function GrainOverlay() {
   return (
     <svg
@@ -116,7 +152,7 @@ function GrainOverlay() {
       aria-hidden="true"
     >
       <filter id="paperGrain">
-        <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" />
+        <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves={2} seed={4} />
         <feColorMatrix type="saturate" values="0" />
       </filter>
       <rect width="100%" height="100%" filter="url(#paperGrain)" />
@@ -124,8 +160,13 @@ function GrainOverlay() {
   );
 }
 
-// A soft halo of ink bled out around a stamp — atmosphere, not decoration.
-function AmbientGlow({ color = VERMILLION, size = 380, className = '' }) {
+interface AmbientGlowProps {
+  color?: string;
+  size?: number;
+  className?: string;
+}
+
+function AmbientGlow({ color = VERMILLION, size = 380, className = '' }: AmbientGlowProps) {
   return (
     <div
       aria-hidden="true"
@@ -135,10 +176,13 @@ function AmbientGlow({ color = VERMILLION, size = 380, className = '' }) {
   );
 }
 
-// A giant, barely-there kanji laid behind a section — the kind of watermark
-// you'd find stamped faintly into the corner of a scroll. Tracks the
-// current theme's text color so it stays a whisper in either mode.
-function WatermarkKanji({ char, color = PAPER, className = '' }) {
+interface WatermarkKanjiProps {
+  char: string;
+  color?: string;
+  className?: string;
+}
+
+function WatermarkKanji({ char, color = PAPER, className = '' }: WatermarkKanjiProps) {
   return (
     <span
       aria-hidden="true"
@@ -150,13 +194,18 @@ function WatermarkKanji({ char, color = PAPER, className = '' }) {
   );
 }
 
-// A full-bleed atmospheric break — an original ink-wash silhouette, not a
-// reproduction of any existing print. Deliberately fixed-palette: vermillion
-// sun on a dark sky regardless of page theme, like a night that doesn't change.
 function FullBleedWave() {
   return (
-    <div className="relative w-full overflow-hidden" style={{ backgroundColor: SUMI_DEEP, height: 'clamp(360px, 48vw, 560px)' }}>
-      <svg viewBox="0 0 1200 560" preserveAspectRatio="xMidYMax slice" className="absolute inset-0 h-full w-full" aria-hidden="true">
+    <div
+      className="relative w-full overflow-hidden"
+      style={{ backgroundColor: SUMI_DEEP, height: 'clamp(360px, 48vw, 560px)' }}
+    >
+      <svg
+        viewBox="0 0 1200 560"
+        preserveAspectRatio="xMidYMax slice"
+        className="absolute inset-0 h-full w-full"
+        aria-hidden="true"
+      >
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={SUMI_DEEP} />
@@ -169,8 +218,8 @@ function FullBleedWave() {
             <stop offset="100%" stopColor={VERMILLION_DEEP} />
           </radialGradient>
           <radialGradient id="sunHalo" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor={VERMILLION} stopOpacity="0.35" />
-            <stop offset="100%" stopColor={VERMILLION} stopOpacity="0" />
+            <stop offset="0%" stopColor={VERMILLION} stopOpacity={0.35} />
+            <stop offset="100%" stopColor={VERMILLION} stopOpacity={0} />
           </radialGradient>
           <linearGradient id="ridgeFar" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#3A2A22" />
@@ -181,63 +230,56 @@ function FullBleedWave() {
             <stop offset="100%" stopColor={SUMI_DEEP} />
           </linearGradient>
           <linearGradient id="waterFade" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={VERMILLION} stopOpacity="0.12" />
-            <stop offset="100%" stopColor={SUMI_DEEP} stopOpacity="0" />
+            <stop offset="0%" stopColor={VERMILLION} stopOpacity={0.12} />
+            <stop offset="100%" stopColor={SUMI_DEEP} stopOpacity={0} />
           </linearGradient>
           <filter id="painterly">
-            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.05" numOctaves="2" seed="12" result="n" />
-            <feDisplacementMap in="SourceGraphic" in2="n" scale="14" xChannelSelector="R" yChannelSelector="G" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.05" numOctaves={2} seed={12} result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale={14} xChannelSelector="R" yChannelSelector="G" />
           </filter>
           <filter id="grain2">
-            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="6" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves={2} seed={6} />
             <feColorMatrix type="saturate" values="0" />
           </filter>
         </defs>
 
         <rect width="1200" height="560" fill="url(#sky)" />
 
-        {/* sun with soft corona, gently displaced for a hand-inked edge */}
-        <circle cx="840" cy="175" r="230" fill="url(#sunHalo)" />
-        <circle cx="840" cy="175" r="98" fill="url(#sunCore)" filter="url(#painterly)" />
+        <circle cx={840} cy={175} r={230} fill="url(#sunHalo)" />
+        <circle cx={840} cy={175} r={98} fill="url(#sunCore)" filter="url(#painterly)" />
 
-        {/* far ridge — atmospheric, cool and pale */}
         <path
           d="M0,300 C90,270 160,320 260,290 C380,255 440,310 560,285 C680,258 740,300 860,278 C960,258 1040,290 1200,265 L1200,560 L0,560 Z"
           fill="url(#ridgeFar)"
-          opacity="0.75"
+          opacity={0.75}
           filter="url(#painterly)"
         />
 
-        {/* mid ridge */}
         <path
           d="M0,360 C110,330 190,380 320,350 C440,322 520,370 640,345 C760,318 830,360 960,338 C1050,322 1120,345 1200,330 L1200,560 L0,560 Z"
           fill={SUMI}
-          opacity="0.92"
+          opacity={0.92}
           filter="url(#painterly)"
         />
 
-        {/* near ridge — darkest, warmest, closest to the reader */}
         <path
           d="M0,420 C130,392 230,438 380,410 C500,388 580,425 720,402 C840,382 920,415 1060,398 C1110,392 1160,396 1200,392 L1200,560 L0,560 Z"
           fill="url(#ridgeNear)"
         />
 
-        {/* water catching the light */}
-        <rect x="0" y="392" width="1200" height="168" fill="url(#waterFade)" />
-        <g stroke={PAPER} strokeOpacity="0.18" strokeWidth="1.5" filter="url(#painterly)">
-          <line x1="120" y1="440" x2="260" y2="440" />
-          <line x1="520" y1="465" x2="700" y2="465" />
-          <line x1="760" y1="440" x2="900" y2="440" />
-          <line x1="220" y1="495" x2="400" y2="495" />
-          <line x1="880" y1="500" x2="1040" y2="500" />
+        <rect x={0} y={392} width={1200} height={168} fill="url(#waterFade)" />
+        <g stroke={PAPER} strokeOpacity={0.18} strokeWidth={1.5} filter="url(#painterly)">
+          <line x1={120} y1={440} x2={260} y2={440} />
+          <line x1={520} y1={465} x2={700} y2={465} />
+          <line x1={760} y1={440} x2={900} y2={440} />
+          <line x1={220} y1={495} x2={400} y2={495} />
+          <line x1={880} y1={500} x2={1040} y2={500} />
         </g>
 
-        {/* two birds, small and distant — the one figurative touch */}
-        <path d="M300,150 q14,-16 28,0 q14,-16 28,0" fill="none" stroke={PAPER} strokeOpacity="0.5" strokeWidth="2" />
-        <path d="M360,190 q10,-12 20,0 q10,-12 20,0" fill="none" stroke={PAPER} strokeOpacity="0.4" strokeWidth="2" />
+        <path d="M300,150 q14,-16 28,0 q14,-16 28,0" fill="none" stroke={PAPER} strokeOpacity={0.5} strokeWidth={2} />
+        <path d="M360,190 q10,-12 20,0 q10,-12 20,0" fill="none" stroke={PAPER} strokeOpacity={0.4} strokeWidth={2} />
 
-        {/* fine grain to unify with the rest of the page */}
-        <rect width="1200" height="560" filter="url(#grain2)" opacity="0.05" style={{ mixBlendMode: 'overlay' }} />
+        <rect width={1200} height={560} filter="url(#grain2)" opacity={0.05} style={{ mixBlendMode: 'overlay' }} />
       </svg>
 
       <div
@@ -254,10 +296,16 @@ function FullBleedWave() {
   );
 }
 
-// The recurring signature: a hand-carved hanko seal, stamped in vermillion.
-// Used small as a logomark, large as the page's one real risk. Always the
-// same ink, in either theme — the seal doesn't change with the light.
-function HankoStamp({ id, chars, size = 120, rotate = -6, delay = 0, ring = true }) {
+interface HankoStampProps {
+  id: string;
+  chars: string[];
+  size?: number;
+  rotate?: number;
+  delay?: number;
+  ring?: boolean;
+}
+
+function HankoStamp({ id, chars, size = 120, rotate = -6, delay = 0, ring = true }: HankoStampProps) {
   const shouldReduceMotion = useReducedMotion();
   const fontSize = chars.length > 1 ? size * 0.34 : size * 0.5;
   const lineHeight = size * 0.4;
@@ -268,11 +316,20 @@ function HankoStamp({ id, chars, size = 120, rotate = -6, delay = 0, ring = true
       initial={shouldReduceMotion ? false : { opacity: 0, scale: 1.7, rotate: rotate - 18 }}
       whileInView={{ opacity: 1, scale: 1, rotate }}
       viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.45, delay, type: 'spring', stiffness: 210, damping: 16 }}
+      transition={
+        shouldReduceMotion ? { duration: 0 } : { duration: 0.45, delay, type: 'spring', stiffness: 210, damping: 16 }
+      }
       style={{ width: size, height: size }}
       className="relative"
     >
-      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} role="img" aria-label="Grantly hanko seal" style={{ overflow: 'visible' }}>
+      <svg
+        viewBox={`0 0 ${size} ${size}`}
+        width={size}
+        height={size}
+        role="img"
+        aria-label="Grantly hanko seal"
+        style={{ overflow: 'visible' }}
+      >
         <defs>
           <radialGradient id={`inkFill-${id}`} cx="35%" cy="30%" r="80%">
             <stop offset="0%" stopColor={VERMILLION_LIGHT} />
@@ -280,9 +337,16 @@ function HankoStamp({ id, chars, size = 120, rotate = -6, delay = 0, ring = true
             <stop offset="100%" stopColor={VERMILLION_DEEP} />
           </radialGradient>
           <filter id={`ink-${id}`}>
-            <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" seed="7" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale={size * 0.045} xChannelSelector="R" yChannelSelector="G" result="displaced" />
-            <feDropShadow dx="0" dy={size * 0.025} stdDeviation={size * 0.03} floodColor={SUMI_DEEP} floodOpacity="0.55" />
+            <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves={3} seed={7} result="noise" />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="noise"
+              scale={size * 0.045}
+              xChannelSelector="R"
+              yChannelSelector="G"
+              result="displaced"
+            />
+            <feDropShadow dx={0} dy={size * 0.025} stdDeviation={size * 0.03} floodColor={SUMI_DEEP} floodOpacity={0.55} />
           </filter>
         </defs>
         <g filter={`url(#ink-${id})`}>
@@ -317,8 +381,11 @@ function HankoStamp({ id, chars, size = 120, rotate = -6, delay = 0, ring = true
   );
 }
 
-// Reads the current page theme via props so it matches light or dark mode.
-function FlowSchematic({ theme }) {
+interface FlowSchematicProps {
+  theme: ThemeTokens;
+}
+
+function FlowSchematic({ theme }: FlowSchematicProps) {
   const boxes = [
     { x: 10, label: 'YOUR APP' },
     { x: 212, label: 'GRANTLY' },
@@ -327,10 +394,10 @@ function FlowSchematic({ theme }) {
   return (
     <svg viewBox="0 0 560 300" className="w-full" role="img" aria-label="Authorization flow diagram">
       <defs>
-        <marker id="arrowPaper" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <marker id="arrowPaper" markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
           <path d="M0,0 L6,3 L0,6 Z" fill={theme.text} />
         </marker>
-        <marker id="arrowVermillion" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+        <marker id="arrowVermillion" markerWidth={8} markerHeight={8} refX={6} refY={3} orient="auto">
           <path d="M0,0 L6,3 L0,6 Z" fill={VERMILLION} />
         </marker>
       </defs>
@@ -338,7 +405,7 @@ function FlowSchematic({ theme }) {
       {boxes.map((b) => (
         <g key={b.label}>
           <rect x={b.x} y={36} width={136} height={54} fill="none" stroke={theme.text} strokeWidth={1.25} />
-          <text x={b.x + 68} y={68} textAnchor="middle" fill={theme.text} fontSize="11" fontFamily={MONO} letterSpacing="0.5">
+          <text x={b.x + 68} y={68} textAnchor="middle" fill={theme.text} fontSize={11} fontFamily={MONO} letterSpacing="0.5">
             {b.label}
           </text>
         </g>
@@ -356,7 +423,6 @@ function FlowSchematic({ theme }) {
         markerEnd="url(#arrowVermillion)"
       />
 
-      {/* kanji step marks, sitting on each leg of the journey */}
       {[
         { x: 178, y: 44, mark: '一' },
         { x: 381, y: 44, mark: '二' },
@@ -370,7 +436,7 @@ function FlowSchematic({ theme }) {
             y={s.y + 4}
             textAnchor="middle"
             fill={s.mark === '四' ? VERMILLION : theme.muted}
-            fontSize="10"
+            fontSize={10}
             fontFamily={DISPLAY}
             fontWeight={700}
           >
@@ -379,38 +445,58 @@ function FlowSchematic({ theme }) {
         </g>
       ))}
 
-      <text x={280} y={230} textAnchor="middle" fill={theme.muted} fontSize="9.5" fontFamily={MONO}>
+      <text x={280} y={230} textAnchor="middle" fill={theme.muted} fontSize={9.5} fontFamily={MONO}>
         code_challenge · S256
       </text>
-      <text x={280} y={250} textAnchor="middle" fill={VERMILLION} fontSize="9.5" fontFamily={MONO}>
+      <text x={280} y={250} textAnchor="middle" fill={VERMILLION} fontSize={9.5} fontFamily={MONO}>
         access_token · RS256 · exp 15m
       </text>
-      <text x={482} y={22} textAnchor="middle" fill={theme.muted} fontSize="9.5" fontFamily={MONO}>
+      <text x={482} y={22} textAnchor="middle" fill={theme.muted} fontSize={9.5} fontFamily={MONO}>
         linked by verified email
       </text>
     </svg>
   );
 }
 
+function readInitialTheme(): boolean {
+  if (typeof window === 'undefined') return true;
+  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === 'light') return false;
+  if (stored === 'dark') return true;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
 export function LandingPage() {
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState<boolean>(readInitialTheme);
+  const shouldReduceMotion = useReducedMotion();
+  const fade = getFadeUp(!!shouldReduceMotion);
   const theme = isDark ? darkTheme : lightTheme;
 
+  useEffect(() => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, isDark ? 'dark' : 'light');
+  }, [isDark]);
+
+  useEffect(() => {
+    document.documentElement.style.scrollBehavior = shouldReduceMotion ? 'auto' : 'smooth';
+    return () => {
+      document.documentElement.style.scrollBehavior = 'auto';
+    };
+  }, [shouldReduceMotion]);
+
+  const rootStyle: CSSVars = {
+    backgroundColor: theme.bg,
+    backgroundImage: `radial-gradient(ellipse 1200px 700px at 70% -10%, ${theme.panel} 0%, ${theme.bg} 55%)`,
+    color: theme.text,
+    fontFamily: BODY,
+    '--vermillion': VERMILLION,
+  };
+
   return (
-    <div
-      className="min-h-screen w-full overflow-x-hidden transition-colors duration-300"
-      style={{
-        backgroundColor: theme.bg,
-        backgroundImage: `radial-gradient(ellipse 1200px 700px at 70% -10%, ${theme.panel} 0%, ${theme.bg} 55%)`,
-        color: theme.text,
-        fontFamily: BODY,
-        '--vermillion': VERMILLION,
-      }}
-    >
+    <div className="min-h-screen w-full overflow-x-hidden transition-colors duration-300" style={rootStyle}>
       <GrainOverlay />
 
-      {/* vertical rail — a quiet structural device along the left margin */}
       <div
+        aria-hidden="true"
         className="pointer-events-none fixed left-4 top-1/2 hidden -translate-y-1/2 text-[11px] tracking-[0.4em] lg:block"
         style={{ writingMode: 'vertical-rl', color: theme.brass, fontFamily: MONO, opacity: 0.45 }}
       >
@@ -418,430 +504,440 @@ export function LandingPage() {
       </div>
 
       {/* ---------------- Nav ---------------- */}
-      <nav
-        className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5"
-        style={{ borderBottom: `1px solid ${theme.hairline}` }}
+      <header
+        className="sticky top-0 z-40 backdrop-blur-md transition-colors duration-300"
+        style={{ backgroundColor: `${theme.bg}CC`, borderBottom: `1px solid ${theme.hairline}` }}
       >
-        <div className="flex items-center gap-2">
-          <span className="text-lg tracking-tight" style={{ fontFamily: DISPLAY, fontWeight: 800 }}>
-            Grantly
-          </span>
-          <span className="h-1 w-1 rounded-full" style={{ backgroundColor: VERMILLION }} />
-        </div>
-        <div className="flex items-center gap-2 sm:gap-5">
-          <a
-            href="https://grantly-e90w.onrender.com/docs"
-            target="_blank"
-            rel="noreferrer"
-            className="hidden text-sm sm:block"
-            style={{ color: theme.muted }}
-          >
-            Docs
-          </a>
-          <a
-            href="https://github.com"
-            target="_blank"
-            rel="noreferrer"
-            className="hidden items-center gap-1.5 text-sm sm:flex"
-            style={{ color: theme.muted }}
-          >
-            <GithubIcon className="h-4 w-4" />
-            GitHub
-          </a>
-          <button
-            type="button"
-            onClick={() => setIsDark((v) => !v)}
-            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            className="flex h-8 w-8 items-center justify-center border transition-colors"
-            style={{ borderColor: theme.hairline, color: theme.text }}
-          >
-            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
-          <Button
-            className="rounded-none px-4 transition-shadow duration-300 hover:shadow-[0_0_28px_-6px_var(--vermillion)]"
-            style={{
-              background: `linear-gradient(155deg, ${VERMILLION_LIGHT}, ${VERMILLION} 55%, ${VERMILLION_DEEP})`,
-              color: PAPER,
-              fontWeight: 600,
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15)',
-            }}
-            onClick={() => (window.location.href = '/login')}
-          >
-            Sign in
-          </Button>
-        </div>
-      </nav>
+        <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-2">
+            <span className="text-lg tracking-tight" style={{ fontFamily: DISPLAY, fontWeight: 800 }}>
+              Grantly
+            </span>
+            <span className="h-1 w-1 rounded-full" style={{ backgroundColor: VERMILLION }} />
+          </div>
 
-      {/* ---------------- Hero ---------------- */}
-      <section className="relative mx-auto max-w-6xl px-6 py-16 sm:py-24">
-        <WatermarkKanji char="許" color={theme.text} className="-left-10 -top-20 hidden lg:block" />
-        <div className="relative grid items-center gap-16 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="lg:pl-2">
-            <div className="mb-5 flex items-start gap-3">
-              <span
-                className="hidden pt-0.5 text-[10px] leading-none tracking-[0.3em] sm:block"
-                style={{ writingMode: 'vertical-rl', color: theme.muted, fontFamily: MONO }}
+          <div className="hidden items-center gap-5 lg:flex">
+            {navLinks.map((l) => (
+              <a key={l.href} href={l.href} className="text-sm" style={{ color: theme.muted }}>
+                {l.label}
+              </a>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-5">
+            <a
+              href="https://grantly-e90w.onrender.com/docs"
+              target="_blank"
+              rel="noreferrer"
+              className="hidden text-sm sm:block"
+              style={{ color: theme.muted }}
+            >
+              Docs
+            </a>
+            <a
+              href="https://github.com"
+              target="_blank"
+              rel="noreferrer"
+              className="hidden items-center gap-1.5 text-sm sm:flex"
+              style={{ color: theme.muted }}
+            >
+              <GithubIcon className="h-4 w-4" />
+              GitHub
+            </a>
+            <button
+              type="button"
+              onClick={() => setIsDark((v) => !v)}
+              aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="flex h-8 w-8 items-center justify-center overflow-hidden border transition-colors"
+              style={{ borderColor: theme.hairline, color: theme.text }}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={isDark ? 'sun' : 'moon'}
+                  initial={shouldReduceMotion ? false : { opacity: 0, rotate: -90, scale: 0.6 }}
+                  animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                  exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, rotate: 90, scale: 0.6 }}
+                  transition={{ duration: shouldReduceMotion ? 0 : 0.25 }}
+                  className="flex"
+                >
+                  {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </motion.span>
+              </AnimatePresence>
+            </button>
+            <Button
+              className="rounded-none px-4 transition-shadow duration-300 hover:shadow-[0_0_28px_-6px_var(--vermillion)]"
+              style={inkButtonStyle()}
+              onClick={() => (window.location.href = '/login')}
+            >
+              Sign in
+            </Button>
+          </div>
+        </nav>
+      </header>
+
+      <main>
+        {/* ---------------- Hero ---------------- */}
+        <section className="relative mx-auto max-w-6xl px-6 py-16 sm:py-24">
+          <WatermarkKanji char="許" color={theme.text} className="-left-10 -top-20 hidden lg:block" />
+          <div className="relative grid items-center gap-16 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="lg:pl-2">
+              <div className="mb-5 flex items-start gap-3">
+                <span
+                  className="hidden pt-0.5 text-[10px] leading-none tracking-[0.3em] sm:block"
+                  style={{ writingMode: 'vertical-rl', color: theme.muted, fontFamily: MONO }}
+                >
+                  認可発行
+                </span>
+                <motion.div
+                  initial="hidden"
+                  animate="show"
+                  variants={fade}
+                  custom={0}
+                  className="inline-flex items-center gap-2 border px-3 py-1 text-xs"
+                  style={{ borderColor: theme.hairline, color: theme.muted }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: VERMILLION }} />
+                  <span style={{ fontFamily: MONO }}>LIVE · grantly-e90w.onrender.com</span>
+                </motion.div>
+              </div>
+
+              <motion.h1
+                initial="hidden"
+                animate="show"
+                variants={fade}
+                custom={1}
+                className="text-[2.6rem] leading-[1.1] sm:text-6xl"
+                style={{ fontFamily: DISPLAY, fontWeight: 800 }}
               >
-                認可発行
-              </span>
+                Identity,
+                <br />
+                <span
+                  style={{
+                    backgroundImage: `linear-gradient(100deg, ${VERMILLION_LIGHT}, ${VERMILLION} 60%, ${VERMILLION_DEEP})`,
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    color: 'transparent',
+                  }}
+                >
+                  sealed and signed.
+                </span>
+              </motion.h1>
+
+              <motion.p
+                initial="hidden"
+                animate="show"
+                variants={fade}
+                custom={2}
+                className="mt-5 max-w-md text-base leading-relaxed"
+                style={{ color: theme.muted }}
+              >
+                Grantly is an OpenID Connect provider you host yourself — the
+                authorization code flow, PKCE, refresh rotation, social login,
+                all built to the RFCs, not around them.
+              </motion.p>
+
               <motion.div
                 initial="hidden"
                 animate="show"
-                variants={fadeUp}
-                custom={0}
-                className="inline-flex items-center gap-2 border px-3 py-1 text-xs"
-                style={{ borderColor: theme.hairline, color: theme.muted }}
+                variants={fade}
+                custom={3}
+                className="mt-8 flex flex-wrap items-center gap-3"
               >
-                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: VERMILLION }} />
-                <span style={{ fontFamily: MONO }}>LIVE · grantly-e90w.onrender.com</span>
+                <Button
+                  className="rounded-none px-6 transition-shadow duration-300 hover:shadow-[0_0_28px_-6px_var(--vermillion)]"
+                  style={inkButtonStyle()}
+                  onClick={() => (window.location.href = '/login')}
+                >
+                  Get started <ArrowRight className="ml-1.5 h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="rounded-none border px-6"
+                  style={{ borderColor: theme.hairline, color: theme.text, backgroundColor: 'transparent' }}
+                  onClick={() => window.open('https://grantly-e90w.onrender.com/docs', '_blank')}
+                >
+                  Read the docs
+                </Button>
+              </motion.div>
+
+              <motion.div initial="hidden" animate="show" variants={fade} custom={4} className="mt-7 flex flex-wrap gap-2">
+                {['RFC 6749', 'RFC 7636 · PKCE', 'RFC 7591'].map((spec) => (
+                  <span
+                    key={spec}
+                    className="border px-2 py-1 text-[10px]"
+                    style={{ borderColor: theme.hairline, color: theme.muted, fontFamily: MONO }}
+                  >
+                    {spec}
+                  </span>
+                ))}
               </motion.div>
             </div>
 
-            <motion.h1
-              initial="hidden"
-              animate="show"
-              variants={fadeUp}
-              custom={1}
-              className="text-[2.6rem] leading-[1.1] sm:text-6xl"
-              style={{ fontFamily: DISPLAY, fontWeight: 800 }}
-            >
-              Identity,
-              <br />
-              <span
-                style={{
-                  backgroundImage: `linear-gradient(100deg, ${VERMILLION_LIGHT}, ${VERMILLION} 60%, ${VERMILLION_DEEP})`,
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  color: 'transparent',
-                }}
+            <div className="relative flex flex-col items-center lg:items-end lg:pr-4">
+              <AmbientGlow size={320} className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:left-auto lg:right-8" />
+              <div
+                className="absolute -top-6 right-6 hidden text-[10px] tracking-[0.2em] sm:block"
+                style={{ color: theme.brass, fontFamily: MONO }}
               >
-                sealed and signed.
-              </span>
-            </motion.h1>
+                許可 — KYOKA
+              </div>
+              <HankoStamp id="hero" chars={['許', '可']} size={200} rotate={-7} delay={0.3} />
+              <div
+                className="relative mt-5 flex w-[200px] items-center justify-between border-t pt-2 text-[10px] tracking-[0.15em]"
+                style={{ borderColor: theme.hairline, color: theme.muted, fontFamily: MONO }}
+              >
+                <span>01</span>
+                <span>GRANTLY</span>
+              </div>
+            </div>
+          </div>
+        </section>
 
-            <motion.p
-              initial="hidden"
-              animate="show"
-              variants={fadeUp}
-              custom={2}
-              className="mt-5 max-w-md text-base leading-relaxed"
-              style={{ color: theme.muted }}
-            >
-              Grantly is an OpenID Connect provider you host yourself — the
-              authorization code flow, PKCE, refresh rotation, social login,
-              all built to the RFCs, not around them.
-            </motion.p>
+        {/* ---------------- Why Grantly ---------------- */}
+        <section id="why" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-16" style={{ borderTop: `1px solid ${theme.hairline}` }}>
+          <motion.p
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fade}
+            className="mb-6 text-[10px] tracking-[0.2em]"
+            style={{ color: theme.brass, fontFamily: MONO }}
+          >
+            図零 — WHY GRANTLY
+          </motion.p>
 
+          <motion.h2
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fade}
+            custom={1}
+            className="max-w-xl text-2xl sm:text-4xl"
+            style={{ fontFamily: DISPLAY, fontWeight: 800 }}
+          >
+            Login shouldn't be your product.
+          </motion.h2>
+
+          <motion.p
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fade}
+            custom={2}
+            className="mt-4 max-w-lg text-base leading-relaxed"
+            style={{ color: theme.muted }}
+          >
+            Every app needs identity. Almost none of them should spend months
+            building it — and none of them should have to hand their users
+            over to someone else's black box either.
+          </motion.p>
+
+          <div className="mt-12 grid gap-px sm:grid-cols-3" style={{ backgroundColor: theme.hairline }}>
+            {problems.map((p, i) => (
+              <motion.div
+                key={p.title}
+                initial="hidden"
+                whileInView="show"
+                viewport={{ once: true, margin: '-80px' }}
+                variants={fade}
+                custom={i}
+                className="flex flex-col gap-2 px-6 py-8"
+                style={{ backgroundColor: theme.bg }}
+              >
+                <p className="text-sm font-medium" style={{ color: theme.text }}>
+                  {p.title}
+                </p>
+                <p className="text-sm leading-relaxed" style={{ color: theme.muted }}>
+                  {p.body}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.p
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fade}
+            custom={3}
+            className="mt-10 max-w-lg text-base leading-relaxed"
+            style={{ color: theme.text, fontFamily: DISPLAY }}
+          >
+            Grantly exists to close that gap — a provider you host yourself,
+            built to the letter of the RFCs, with nothing borrowed and nothing
+            hidden.
+          </motion.p>
+        </section>
+
+        {/* ---------------- Flow ---------------- */}
+        <section id="flow" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-16 lg:pl-16" style={{ borderTop: `1px solid ${theme.hairline}` }}>
+          <motion.p
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fade}
+            className="mb-8 text-[10px] tracking-[0.2em]"
+            style={{ color: theme.brass, fontFamily: MONO }}
+          >
+            図一 — AUTHORIZATION FLOW
+          </motion.p>
+
+          <div className="grid gap-10 lg:grid-cols-[3fr_2fr] lg:items-start">
             <motion.div
               initial="hidden"
-              animate="show"
-              variants={fadeUp}
-              custom={3}
-              className="mt-8 flex flex-wrap items-center gap-3"
+              whileInView="show"
+              viewport={{ once: true, margin: '-80px' }}
+              variants={fade}
+              className="border p-6"
+              style={{ borderColor: theme.hairline, backgroundColor: theme.panel }}
             >
-              <Button
-                className="rounded-none px-6 transition-shadow duration-300 hover:shadow-[0_0_28px_-6px_var(--vermillion)]"
+              <FlowSchematic theme={theme} />
+            </motion.div>
+
+            <div className="flex flex-col gap-6 lg:pt-2">
+              {flowSteps.map((s, i) => (
+                <motion.div
+                  key={s.mark}
+                  initial="hidden"
+                  whileInView="show"
+                  viewport={{ once: true, margin: '-80px' }}
+                  variants={fade}
+                  custom={i}
+                  className="flex gap-4"
+                >
+                  <span
+                    className="shrink-0 text-2xl"
+                    style={{ fontFamily: DISPLAY, fontWeight: 700, color: i === 3 ? VERMILLION : theme.brass }}
+                  >
+                    {s.mark}
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: theme.text }}>
+                      {s.label}
+                    </p>
+                    <p className="mt-0.5 text-sm leading-relaxed" style={{ color: theme.muted }}>
+                      {s.detail}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------- Spec sheet ---------------- */}
+        <section id="spec" className="mx-auto max-w-6xl scroll-mt-20 px-6 py-16" style={{ borderTop: `1px solid ${theme.hairline}` }}>
+          <motion.p
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fade}
+            className="mb-8 text-[10px] tracking-[0.2em]"
+            style={{ color: theme.brass, fontFamily: MONO }}
+          >
+            図二 — SPECIFICATION
+          </motion.p>
+          <div style={{ border: `1px solid ${theme.hairline}` }}>
+            {specRows.map((row, i) => (
+              <motion.div
+                key={row.label}
+                initial="hidden"
+                whileInView="show"
+                viewport={{ once: true, margin: '-80px' }}
+                variants={fade}
+                custom={i}
+                className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:gap-6"
+                style={{ borderBottom: i < specRows.length - 1 ? `1px solid ${theme.hairline}` : 'none' }}
+              >
+                <div className="flex w-full shrink-0 items-center gap-2.5 sm:w-56" style={{ fontFamily: MONO }}>
+                  <span className="h-2.5 w-2.5 shrink-0" style={{ backgroundColor: VERMILLION }} />
+                  <span className="text-sm">{row.label}</span>
+                </div>
+                <span className="text-sm" style={{ color: theme.muted }}>
+                  {row.value}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
+        {/* ---------------- Numbers ---------------- */}
+        <section className="mx-auto max-w-6xl px-6 py-16" style={{ borderTop: `1px solid ${theme.hairline}` }}>
+          <motion.p
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: '-80px' }}
+            variants={fade}
+            className="mb-8 text-[10px] tracking-[0.2em]"
+            style={{ color: theme.brass, fontFamily: MONO }}
+          >
+            図三 — NUMBERS
+          </motion.p>
+          <div className="grid gap-px sm:grid-cols-4" style={{ backgroundColor: theme.hairline }}>
+            {stats.map((s, i) => (
+              <motion.div
+                key={s.label}
+                initial="hidden"
+                whileInView="show"
+                viewport={{ once: true, margin: '-80px' }}
+                variants={fade}
+                custom={i}
+                className="flex flex-col justify-center gap-1.5 px-6 py-10"
                 style={{
-                  background: `linear-gradient(155deg, ${VERMILLION_LIGHT}, ${VERMILLION} 55%, ${VERMILLION_DEEP})`,
-                  color: PAPER,
-                  fontWeight: 600,
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15)',
+                  background: s.highlight
+                    ? `linear-gradient(160deg, ${VERMILLION_LIGHT}, ${VERMILLION} 60%, ${VERMILLION_DEEP})`
+                    : theme.bg,
                 }}
+              >
+                <span
+                  className="text-4xl sm:text-5xl"
+                  style={{ fontFamily: DISPLAY, fontWeight: 800, color: s.highlight ? PAPER : theme.text }}
+                >
+                  {s.value}
+                </span>
+                <span className="text-sm" style={{ color: s.highlight ? `${PAPER}CC` : theme.muted }}>
+                  {s.label}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
+        <FullBleedWave />
+
+        {/* ---------------- CTA / seal of approval ---------------- */}
+        <section className="relative mx-auto max-w-6xl overflow-hidden px-6 py-20">
+          <div
+            className="relative grid items-center gap-12 border px-8 py-16 sm:px-14 lg:grid-cols-[0.8fr_1.2fr]"
+            style={{ borderColor: theme.hairline, backgroundColor: theme.panel }}
+          >
+            <div className="relative flex justify-center lg:justify-start">
+              <AmbientGlow size={260} className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
+              <div className="relative flex flex-col items-center gap-3">
+                <HankoStamp id="cta" chars={['許', '可']} size={150} rotate={-9} />
+                <span className="text-[10px] tracking-[0.25em]" style={{ color: theme.brass, fontFamily: MONO }}>
+                  KYOKA — GRANTED
+                </span>
+              </div>
+            </div>
+            <div className="text-center lg:text-left">
+              <h2 className="text-2xl sm:text-4xl" style={{ fontFamily: DISPLAY, fontWeight: 800 }}>
+                Stop building login screens.
+              </h2>
+              <p className="mx-auto mt-3 max-w-sm text-sm sm:mx-0" style={{ color: theme.muted }}>
+                Point your app at Grantly. It handles identity from here.
+              </p>
+              <Button
+                className="mt-8 rounded-none px-7 transition-shadow duration-300 hover:shadow-[0_0_28px_-6px_var(--vermillion)]"
+                style={inkButtonStyle()}
                 onClick={() => (window.location.href = '/login')}
               >
                 Get started <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                className="rounded-none border px-6"
-                style={{ borderColor: theme.hairline, color: theme.text, backgroundColor: 'transparent' }}
-                onClick={() => window.open('https://grantly-e90w.onrender.com/docs', '_blank')}
-              >
-                Read the docs
-              </Button>
-            </motion.div>
-
-            <motion.div initial="hidden" animate="show" variants={fadeUp} custom={4} className="mt-7 flex flex-wrap gap-2">
-              {['RFC 6749', 'RFC 7636 · PKCE', 'RFC 7591'].map((spec) => (
-                <span
-                  key={spec}
-                  className="border px-2 py-1 text-[10px]"
-                  style={{ borderColor: theme.hairline, color: theme.muted, fontFamily: MONO }}
-                >
-                  {spec}
-                </span>
-              ))}
-            </motion.div>
-          </div>
-
-          {/* the mark, allowed to spill past the column — the one bold move */}
-          <div className="relative flex flex-col items-center lg:items-end lg:pr-4">
-            <AmbientGlow size={320} className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:left-auto lg:right-8" />
-            <div className="absolute -top-6 right-6 hidden text-[10px] tracking-[0.2em] sm:block" style={{ color: theme.brass, fontFamily: MONO }}>
-              許可 — KYOKA
-            </div>
-            <HankoStamp id="hero" chars={['許', '可']} size={200} rotate={-7} delay={0.3} />
-            <div
-              className="relative mt-5 flex w-[200px] items-center justify-between border-t pt-2 text-[10px] tracking-[0.15em]"
-              style={{ borderColor: theme.hairline, color: theme.muted, fontFamily: MONO }}
-            >
-              <span>01</span>
-              <span>GRANTLY</span>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* ---------------- Why Grantly ---------------- */}
-      <section className="mx-auto max-w-6xl px-6 py-16" style={{ borderTop: `1px solid ${theme.hairline}` }}>
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={fadeUp}
-          className="mb-6 text-[10px] tracking-[0.2em]"
-          style={{ color: theme.brass, fontFamily: MONO }}
-        >
-          図零 — WHY GRANTLY
-        </motion.p>
-
-        <motion.h2
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={fadeUp}
-          custom={1}
-          className="max-w-xl text-2xl sm:text-4xl"
-          style={{ fontFamily: DISPLAY, fontWeight: 800 }}
-        >
-          Login shouldn't be your product.
-        </motion.h2>
-
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={fadeUp}
-          custom={2}
-          className="mt-4 max-w-lg text-base leading-relaxed"
-          style={{ color: theme.muted }}
-        >
-          Every app needs identity. Almost none of them should spend months
-          building it — and none of them should have to hand their users
-          over to someone else's black box either.
-        </motion.p>
-
-        <div className="mt-12 grid gap-px sm:grid-cols-3" style={{ backgroundColor: theme.hairline }}>
-          {problems.map((p, i) => (
-            <motion.div
-              key={p.title}
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, margin: '-80px' }}
-              variants={fadeUp}
-              custom={i}
-              className="flex flex-col gap-2 px-6 py-8"
-              style={{ backgroundColor: theme.bg }}
-            >
-              <p className="text-sm font-medium" style={{ color: theme.text }}>
-                {p.title}
-              </p>
-              <p className="text-sm leading-relaxed" style={{ color: theme.muted }}>
-                {p.body}
-              </p>
-            </motion.div>
-          ))}
-        </div>
-
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={fadeUp}
-          custom={3}
-          className="mt-10 max-w-lg text-base leading-relaxed"
-          style={{ color: theme.text, fontFamily: DISPLAY }}
-        >
-          Grantly exists to close that gap — a provider you host yourself,
-          built to the letter of the RFCs, with nothing borrowed and nothing
-          hidden.
-        </motion.p>
-      </section>
-
-      {/* ---------------- Flow ---------------- */}
-      <section className="mx-auto max-w-6xl px-6 py-16 lg:pl-16" style={{ borderTop: `1px solid ${theme.hairline}` }}>
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={fadeUp}
-          className="mb-8 text-[10px] tracking-[0.2em]"
-          style={{ color: theme.brass, fontFamily: MONO }}
-        >
-          図一 — AUTHORIZATION FLOW
-        </motion.p>
-
-        <div className="grid gap-10 lg:grid-cols-[3fr_2fr] lg:items-start">
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: '-80px' }}
-            variants={fadeUp}
-            className="border p-6"
-            style={{ borderColor: theme.hairline, backgroundColor: theme.panel }}
-          >
-            <FlowSchematic theme={theme} />
-          </motion.div>
-
-          <div className="flex flex-col gap-6 lg:pt-2">
-            {flowSteps.map((s, i) => (
-              <motion.div
-                key={s.mark}
-                initial="hidden"
-                whileInView="show"
-                viewport={{ once: true, margin: '-80px' }}
-                variants={fadeUp}
-                custom={i}
-                className="flex gap-4"
-              >
-                <span
-                  className="shrink-0 text-2xl"
-                  style={{ fontFamily: DISPLAY, fontWeight: 700, color: i === 3 ? VERMILLION : theme.brass }}
-                >
-                  {s.mark}
-                </span>
-                <div>
-                  <p className="text-sm font-medium" style={{ color: theme.text }}>
-                    {s.label}
-                  </p>
-                  <p className="mt-0.5 text-sm leading-relaxed" style={{ color: theme.muted }}>
-                    {s.detail}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------- Spec sheet ---------------- */}
-      <section className="mx-auto max-w-6xl px-6 py-16" style={{ borderTop: `1px solid ${theme.hairline}` }}>
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={fadeUp}
-          className="mb-8 text-[10px] tracking-[0.2em]"
-          style={{ color: theme.brass, fontFamily: MONO }}
-        >
-          図二 — SPECIFICATION
-        </motion.p>
-        <div style={{ border: `1px solid ${theme.hairline}` }}>
-          {specRows.map((row, i) => (
-            <motion.div
-              key={row.label}
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, margin: '-80px' }}
-              variants={fadeUp}
-              custom={i}
-              className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:gap-6"
-              style={{ borderBottom: i < specRows.length - 1 ? `1px solid ${theme.hairline}` : 'none' }}
-            >
-              <div className="flex w-full shrink-0 items-center gap-2.5 sm:w-56" style={{ fontFamily: MONO }}>
-                <span className="h-2.5 w-2.5 shrink-0" style={{ backgroundColor: VERMILLION }} />
-                <span className="text-sm">{row.label}</span>
-              </div>
-              <span className="text-sm" style={{ color: theme.muted }}>
-                {row.value}
-              </span>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* ---------------- Numbers ---------------- */}
-      <section className="mx-auto max-w-6xl px-6 py-16" style={{ borderTop: `1px solid ${theme.hairline}` }}>
-        <motion.p
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: '-80px' }}
-          variants={fadeUp}
-          className="mb-8 text-[10px] tracking-[0.2em]"
-          style={{ color: theme.brass, fontFamily: MONO }}
-        >
-          図三 — NUMBERS
-        </motion.p>
-        <div className="grid gap-px sm:grid-cols-4" style={{ backgroundColor: theme.hairline }}>
-          {stats.map((s, i) => (
-            <motion.div
-              key={s.label}
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, margin: '-80px' }}
-              variants={fadeUp}
-              custom={i}
-              className="flex flex-col justify-center gap-1.5 px-6 py-10"
-              style={{
-                background: s.highlight
-                  ? `linear-gradient(160deg, ${VERMILLION_LIGHT}, ${VERMILLION} 60%, ${VERMILLION_DEEP})`
-                  : theme.bg,
-              }}
-            >
-              <span
-                className="text-4xl sm:text-5xl"
-                style={{ fontFamily: DISPLAY, fontWeight: 800, color: s.highlight ? PAPER : theme.text }}
-              >
-                {s.value}
-              </span>
-              <span className="text-sm" style={{ color: s.highlight ? `${PAPER}CC` : theme.muted }}>
-                {s.label}
-              </span>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* ---------------- Wave break ---------------- */}
-      <FullBleedWave />
-
-      {/* ---------------- CTA / seal of approval ---------------- */}
-      <section className="relative mx-auto max-w-6xl overflow-hidden px-6 py-20">
-        <div
-          className="relative grid items-center gap-12 border px-8 py-16 sm:px-14 lg:grid-cols-[0.8fr_1.2fr]"
-          style={{ borderColor: theme.hairline, backgroundColor: theme.panel }}
-        >
-          <div className="relative flex justify-center lg:justify-start">
-            <AmbientGlow size={260} className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" />
-            <div className="relative flex flex-col items-center gap-3">
-              <HankoStamp id="cta" chars={['許', '可']} size={150} rotate={-9} />
-              <span className="text-[10px] tracking-[0.25em]" style={{ color: theme.brass, fontFamily: MONO }}>
-                KYOKA — GRANTED
-              </span>
-            </div>
-          </div>
-          <div className="text-center lg:text-left">
-            <h2 className="text-2xl sm:text-4xl" style={{ fontFamily: DISPLAY, fontWeight: 800 }}>
-              Stop building login screens.
-            </h2>
-            <p className="mt-3 max-w-sm text-sm sm:mx-0 mx-auto" style={{ color: theme.muted }}>
-              Point your app at Grantly. It handles identity from here.
-            </p>
-            <Button
-              className="mt-8 rounded-none px-7 transition-shadow duration-300 hover:shadow-[0_0_28px_-6px_var(--vermillion)]"
-              style={{
-                background: `linear-gradient(155deg, ${VERMILLION_LIGHT}, ${VERMILLION} 55%, ${VERMILLION_DEEP})`,
-                color: PAPER,
-                fontWeight: 600,
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15)',
-              }}
-              onClick={() => (window.location.href = '/login')}
-            >
-              Get started <ArrowRight className="ml-1.5 h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
       {/* ---------------- Footer ---------------- */}
       <footer className="mx-auto max-w-6xl px-6 py-8" style={{ borderTop: `1px solid ${theme.hairline}` }}>
