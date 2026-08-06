@@ -1,75 +1,82 @@
-# React + TypeScript + Vite
+# Grantly Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Grantly Dashboard is a React-based admin interface for managing OAuth applications. It provides a simple flow to sign in, view registered apps, create new OAuth clients, and delete existing clients.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Login screen with OAuth session support
+- Dashboard showing registered OAuth applications
+- Create new OAuth applications with a redirect URI
+- Delete OAuth applications from the dashboard
+- Uses React Query for data fetching and cache management
+- Built with Vite, React, TypeScript, and Tailwind CSS
 
-## React Compiler
+## Tech stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 19
+- TypeScript
+- Vite
+- @tanstack/react-query
+- @tanstack/react-router
+- Tailwind CSS
+- lucide-react
+- framer-motion
+- radix-ui
+- shadcn
 
-## Expanding the ESLint configuration
+## Project structure
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- `src/routes/` - route definitions and page layouts
+- `src/components/` - reusable UI components
+- `src/hooks/` - custom hooks for API access and auth flows
+- `src/lib/api.ts` - API client configuration
+- `src/types/api.ts` - shared API types
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Setup
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+1. Install dependencies:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+   ```bash
+   npm install
+   ```
 
-```
+2. Create a `.env` file at the project root with your backend URL:
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+   ```bash
+   VITE_API_URL=http://localhost:4000
+   ```
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+   Adjust the URL to match the API server that provides authentication and OAuth client endpoints.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+3. Run the development server:
 
-```
+   ```bash
+   npm run dev
+   ```
+
+4. Open the local Vite URL shown in the terminal.
+
+## Available scripts
+
+- `npm run dev` - start the Vite development server
+- `npm run build` - compile TypeScript and build the production bundle
+- `npm run lint` - run ESLint across the project
+- `npm run preview` - locally preview the production build
+
+## API integration
+
+The dashboard expects a backend API accessible through `VITE_API_URL` with at least these routes:
+
+- `GET /clients` - return a list of OAuth clients
+- `POST /clients` - create a new OAuth client
+- `POST /logout` - log the current user out
+
+## Notes
+
+- The login page currently includes temporary debug output for session state.
+- After creating a client, the secret is revealed on the creation success page.
+- Client deletion clears the cached list and refreshes the dashboard automatically.
+
+## Contribution
+
+Contributions are welcome. If you add new features, keep components, hooks, and route definitions consistent with the existing structure.
