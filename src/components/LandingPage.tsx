@@ -1,26 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { Link } from '@tanstack/react-router';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import type { Variants } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Sun, Moon } from 'lucide-react';
 
-// ---------------------------------------------------------------------------
-// Grantly landing page — "hanko / authorized seal" concept
-//
-// The hanko is the real-world ancestor of what an OAuth token does: a carved
-// mark that authorizes a document on someone's behalf. That's the whole page.
-// The stamp and the wave scene use a fixed "ink" palette on purpose —
-// vermillion on dark, always — while the rest of the page switches between a
-// sumi-ink (dark) and washi-paper (light) theme, persisted across visits.
-//
-// Fonts (add to index.html <head>, replacing any previous font link):
-// <link rel="preconnect" href="https://fonts.googleapis.com">
-// <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-// <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-//
-// Install: npm install framer-motion
-// ---------------------------------------------------------------------------
+
+const GITHUB_REPO_URL = 'https://github.com/thetejascodes/Grantly';
 
 interface GithubIconProps {
   className?: string;
@@ -34,8 +21,6 @@ function GithubIcon({ className }: GithubIconProps) {
   );
 }
 
-// Type-only escape hatch for CSS custom properties — React's CSSProperties
-// has no index signature for `--foo` vars, so plain style objects reject them.
 type CSSVars = CSSProperties & Record<`--${string}`, string>;
 
 function getFadeUp(reduceMotion: boolean): Variants {
@@ -522,24 +507,18 @@ export function LandingPage() {
                 {l.label}
               </a>
             ))}
+            <Link to="/docs" className="text-sm" style={{ color: theme.muted }}>
+              Docs
+            </Link>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-5">
+          <div className="flex items-center gap-2 sm:gap-4">
             <a
-              href="https://grantly-e90w.onrender.com/docs"
+              href={GITHUB_REPO_URL}
               target="_blank"
               rel="noreferrer"
-              className="hidden text-sm sm:block"
-              style={{ color: theme.muted }}
-            >
-              Docs
-            </a>
-            <a
-              href="https://github.com"
-              target="_blank"
-              rel="noreferrer"
-              className="hidden items-center gap-1.5 text-sm sm:flex"
-              style={{ color: theme.muted }}
+              className="hidden items-center gap-1.5 border px-3 py-1.5 text-sm sm:flex"
+              style={{ borderColor: theme.hairline, color: theme.text }}
             >
               <GithubIcon className="h-4 w-4" />
               GitHub
@@ -650,14 +629,23 @@ export function LandingPage() {
                 >
                   Get started <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Button>
-                <Button
-                  variant="outline"
-                  className="rounded-none border px-6"
-                  style={{ borderColor: theme.hairline, color: theme.text, backgroundColor: 'transparent' }}
-                  onClick={() => window.open('https://grantly-e90w.onrender.com/docs', '_blank')}
+                <Link
+                  to="/docs"
+                  className="inline-flex items-center border px-6 py-2 text-sm"
+                  style={{ borderColor: theme.hairline, color: theme.text }}
                 >
                   Read the docs
-                </Button>
+                </Link>
+                <a
+                  href={GITHUB_REPO_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 border px-6 py-2 text-sm"
+                  style={{ borderColor: theme.hairline, color: theme.text }}
+                >
+                  <GithubIcon className="h-4 w-4" />
+                  View on GitHub
+                </a>
               </motion.div>
 
               <motion.div initial="hidden" animate="show" variants={fade} custom={4} className="mt-7 flex flex-wrap gap-2">
@@ -948,10 +936,8 @@ export function LandingPage() {
           <span>印 GRANTLY · AUTHORIZATION SERVICE · © {new Date().getFullYear()}</span>
           <div className="flex gap-5">
             <a href="/login">Sign in</a>
-            <a href="https://grantly-e90w.onrender.com/docs" target="_blank" rel="noreferrer">
-              Docs
-            </a>
-            <a href="https://github.com" target="_blank" rel="noreferrer">
+            <Link to="/docs">Docs</Link>
+            <a href={GITHUB_REPO_URL} target="_blank" rel="noreferrer">
               GitHub
             </a>
           </div>
