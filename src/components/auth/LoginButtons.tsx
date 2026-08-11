@@ -6,13 +6,22 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 interface LoginButtonsProps {
   theme: ThemeTokens;
+  interactionUid?: string;
 }
 
-export function LoginButtons({ theme }: LoginButtonsProps) {
+function buildProviderUrl(provider: 'google' | 'github', interactionUid?: string): string {
+  const url = new URL(`${API_URL}/auth/external/${provider}`);
+  if (interactionUid) {
+    url.searchParams.set('interaction_uid', interactionUid);
+  }
+  return url.toString();
+}
+
+export function LoginButtons({ theme, interactionUid }: LoginButtonsProps) {
   return (
     <div className="flex flex-col gap-3">
       <a
-        href={`${API_URL}/auth/external/google`}
+        href={buildProviderUrl('google', interactionUid)}
         className="flex items-center justify-center gap-2.5 border px-5 py-3 text-sm transition-colors"
         style={{ borderColor: theme.hairline, color: theme.text }}
       >
@@ -20,7 +29,7 @@ export function LoginButtons({ theme }: LoginButtonsProps) {
         Continue with Google
       </a>
       <a
-        href={`${API_URL}/auth/external/github`}
+        href={buildProviderUrl('github', interactionUid)}
         className="flex items-center justify-center gap-2.5 border px-5 py-3 text-sm transition-colors"
         style={{ borderColor: theme.hairline, color: theme.text }}
       >

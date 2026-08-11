@@ -4,13 +4,21 @@ import { useSession } from '../hooks/useSession';
 import { useGrantlyTheme, rootPageStyle, DISPLAY, MONO, VERMILLION } from '@/lib/theme';
 import { HankoStamp, AmbientGlow } from '@/components/brand/marks';
 
+interface LoginSearch {
+  interaction?: string;
+}
+
 export const Route = createFileRoute('/login')({
+  validateSearch: (search: Record<string, unknown>): LoginSearch => ({
+    interaction: typeof search.interaction === 'string' ? search.interaction : undefined,
+  }),
   component: LoginPage,
 });
 
 function LoginPage() {
   const { data: user, isLoading, isError } = useSession();
   const { theme } = useGrantlyTheme();
+  const { interaction } = Route.useSearch();
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center px-6" style={rootPageStyle(theme)}>
@@ -53,7 +61,9 @@ function LoginPage() {
             </div>
           )}
 
-          {!isLoading && (isError || !user) && <LoginButtons theme={theme} />}
+          {!isLoading && (isError || !user) && (
+            <LoginButtons theme={theme} interactionUid={interaction} />
+          )}
         </div>
       </div>
     </div>

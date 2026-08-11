@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ConsentRouteImport } from './routes/consent'
 import { Route as DashboardRouteRouteImport } from './routes/dashboard/route'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as LoginRouteImport } from './routes/login'
@@ -19,6 +20,11 @@ import { Route as DashboardNewRouteImport } from './routes/dashboard/new'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsentRoute = ConsentRouteImport.update({
+  id: '/consent',
+  path: '/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRouteRoute = DashboardRouteRouteImport.update({
@@ -50,6 +56,7 @@ const DashboardNewRoute = DashboardNewRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/consent': typeof ConsentRoute
   '/docs': typeof DocsRoute
   '/login': typeof LoginRoute
   '/dashboard/new': typeof DashboardNewRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/consent': typeof ConsentRoute
   '/docs': typeof DocsRoute
   '/login': typeof LoginRoute
   '/dashboard/new': typeof DashboardNewRoute
@@ -66,6 +74,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteRouteWithChildren
+  '/consent': typeof ConsentRoute
   '/docs': typeof DocsRoute
   '/login': typeof LoginRoute
   '/dashboard/new': typeof DashboardNewRoute
@@ -74,13 +83,20 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/dashboard' | '/docs' | '/login' | '/dashboard/new' | '/dashboard/'
+    | '/'
+    | '/dashboard'
+    | '/consent'
+    | '/docs'
+    | '/login'
+    | '/dashboard/new'
+    | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/docs' | '/login' | '/dashboard/new' | '/dashboard'
+  to: '/' | '/consent' | '/docs' | '/login' | '/dashboard/new' | '/dashboard'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/consent'
     | '/docs'
     | '/login'
     | '/dashboard/new'
@@ -90,6 +106,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRouteRoute: typeof DashboardRouteRouteWithChildren
+  ConsentRoute: typeof ConsentRoute
   DocsRoute: typeof DocsRoute
   LoginRoute: typeof LoginRoute
 }
@@ -101,6 +118,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consent': {
+      id: '/consent'
+      path: '/consent'
+      fullPath: '/consent'
+      preLoaderRoute: typeof ConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -158,6 +182,7 @@ const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRouteRoute: DashboardRouteRouteWithChildren,
+  ConsentRoute: ConsentRoute,
   DocsRoute: DocsRoute,
   LoginRoute: LoginRoute,
 }
