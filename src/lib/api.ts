@@ -24,6 +24,17 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
 
+  // A 401 on /session/me just means "not logged in" — useSession() already
+  // handles that itself and shouldn't get redirected mid-check. A 401 on
+  // anything else means a session that *was* valid has expired mid-use —
+  // send the user back to login instead of showing them a raw error.
+  if (res.status === 401 && path !== '/session/me') {
+    window.location.href = '/login';
+    // Never resolves — the navigation above is already underway, and
+    // callers shouldn't also try to handle this as a normal error.
+    return new Promise<T>(() => {});
+  }
+
   if (res.status === 204) {
     // DELETE endpoints return no body
     return undefined as T;

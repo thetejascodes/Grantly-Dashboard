@@ -2,7 +2,8 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useClients } from '../../hooks/useClients';
 import { useDeleteClient } from '../../hooks/useDeleteClient';
 import { ClientList } from '../../components/clients/ClientList';
-import { useGrantlyTheme, DISPLAY, MONO, VERMILLION } from '@/lib/theme';
+import { useGrantlyTheme, DISPLAY, VERMILLION } from '@/lib/theme';
+import { Spinner } from '@/components/brand/spinner';
 
 export const Route = createFileRoute('/dashboard/')({
   component: DashboardHome,
@@ -29,13 +30,13 @@ function DashboardHome() {
       </div>
 
       {isLoading && (
-        <p className="text-sm" style={{ color: theme.muted, fontFamily: MONO }}>
-          Loading your apps…
-        </p>
+        <div className="flex justify-center py-14">
+          <Spinner label="Loading your apps…" />
+        </div>
       )}
 
       {isError && (
-        <p className="text-sm" style={{ color: VERMILLION, fontFamily: MONO }}>
+        <p className="text-sm" style={{ color: VERMILLION }}>
           Something went wrong loading your apps.
         </p>
       )}
