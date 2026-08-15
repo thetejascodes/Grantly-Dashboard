@@ -1,5 +1,4 @@
 # Grantly Dashboard
-
 The frontend for [Grantly](https://github.com/thetejascodes/Grantly) — a self-hosted OpenID Connect provider. This is where a signed-in user manages their own OAuth applications (create a client, get a `client_id`/`client_secret` once, delete when done), and where end users of *other* apps built on Grantly see a real Allow/Deny consent screen when authorizing.
 
 **Live:** [grantly-dashboard-seven.vercel.app](https://grantly-dashboard-seven.vercel.app)
