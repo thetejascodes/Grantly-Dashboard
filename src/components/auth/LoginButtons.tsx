@@ -2,7 +2,11 @@ import type { ThemeTokens } from '@/lib/theme';
 import { MONO } from '@/lib/theme';
 import { GoogleIcon, GithubIcon } from '@/components/brand/marks';
 
-const API_URL = import.meta.env.VITE_API_URL;
+// Always the real backend URL, never the /api proxy path — these are real
+// browser navigations (clicking the link), not fetch calls, so there's no
+// cookie reason to route them through the proxy, and doing so would break
+// (a relative new URL('/api/...') with no base throws immediately).
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 interface LoginButtonsProps {
   theme: ThemeTokens;
@@ -10,7 +14,7 @@ interface LoginButtonsProps {
 }
 
 function buildProviderUrl(provider: 'google' | 'github', interactionUid?: string): string {
-  const url = new URL(`${API_URL}/auth/external/${provider}`);
+  const url = new URL(`${BACKEND_URL}/auth/external/${provider}`);
   if (interactionUid) {
     url.searchParams.set('interaction_uid', interactionUid);
   }

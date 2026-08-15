@@ -3,7 +3,16 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useGrantlyTheme, rootPageStyle, DISPLAY, MONO, VERMILLION } from '@/lib/theme';
 import { HankoStamp, AmbientGlow } from '@/components/brand/marks';
 
+// Used for the two fetch() calls below — goes through the /api proxy in
+// production, keeping the browser's view of these requests same-origin.
 const API_URL = import.meta.env.VITE_API_URL;
+
+// Used only for the final real navigation at the bottom of submitDecision.
+// Always the actual backend URL, never the /api proxy path — this is a
+// real browser redirect (window.location.href), and oidc-provider's own
+// internal redirects during that step use relative paths that need to
+// resolve against the real backend, not the Vercel proxy.
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 interface ConsentSearch {
   interaction?: string;
@@ -70,8 +79,9 @@ function ConsentPage() {
       // Real browser navigation on purpose, not fetch — the backend's
       // interactionFinished redirect (back to the requesting app) has to
       // happen on an actual top-level navigation, not inside a fetch
-      // response, or the final redirect never reaches the browser.
-      window.location.href = `${API_URL}/interaction/${interaction}`;
+      // response, or the final redirect never reaches the browser. Uses
+      // BACKEND_URL, not API_URL — see the note at the top of this file.
+      window.location.href = `${BACKEND_URL}/interaction/${interaction}`;
     } catch {
       setError('Something went wrong submitting your decision. Try again.');
       setSubmitting(null);
