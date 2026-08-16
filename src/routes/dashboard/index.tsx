@@ -3,7 +3,7 @@ import { useClients } from '../../hooks/useClients';
 import { useDeleteClient } from '../../hooks/useDeleteClient';
 import { ClientList } from '../../components/clients/ClientList';
 import { useGrantlyTheme, DISPLAY, VERMILLION } from '@/lib/theme';
-import { Spinner } from '@/components/brand/spinner';
+import { Spinner } from '@/components/brand/Spinner';
 
 export const Route = createFileRoute('/dashboard/')({
   component: DashboardHome,
